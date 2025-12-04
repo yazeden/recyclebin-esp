@@ -1,0 +1,41 @@
+{
+  "bakNaam": "Keuken Prullenbak",
+  "items": [
+    {
+      "id": 1,
+      "product": "Bananenschil",
+      "categorie": "GFT",
+      "kleur": "#4CAF50"
+    },
+    {
+      "id": 2,
+      "product": "Plastic fles",
+      "categorie": "PMD",
+      "kleur": "#FF9800"
+    },
+    {
+      "id": 3,
+      "product": "Papier",
+      "categorie": "Oud Papier",
+      "kleur": "#2196F3"
+    },
+    {
+      "id": 4,
+      "product": "Bierflesje",
+      "categorie": "Glas",
+      "kleur": "#9C27B0"
+    },
+    {
+      "id": 5,
+      "product": "Chipszak",
+      "categorie": "Restafval",
+      "kleur": "#757575"
+    },
+    {
+      "id": 6,
+      "product": "Koffiefilter",
+      "categorie": "GFT",
+      "kleur": "#4CAF50"
+    }
+  ]
+}
