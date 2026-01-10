@@ -96,40 +96,36 @@ private:
   void handlePopupClick(int x, int y) {
     if (pendingItemIndex < 0 || pendingItemIndex >= (int)allItems.size()) return;
     
-    // Nieuwe fullscreen popup layout
-    // Button bounds: X=20-220 (width=200)
-    // Schoon: Y=140-200
-    // Vies: Y=220-280
-    
-    int btnX = 20;
-    int btnXEnd = 220;
-    
     Serial.printf("Popup click: x=%d, y=%d\n", x, y);
     
-    // Check X bounds first
-    if (x >= btnX && x <= btnXEnd) {
-      Item& item = allItems[pendingItemIndex];
-      
-      // Schoon button (Y: 140-200) - bovenste button
-      if (y >= 140 && y <= 200) {
-        Serial.println("SCHOON button pressed!");
-        item.isDirty = false;
-        dispatchItemEvent(item, false);
-        mode = HomeScreenMode::RESULT;
-        needsRedraw = true;
-        return;
-      }
-      // Vies button (Y: 220-280) - onderste button
-      if (y >= 220 && y <= 280) {
-        Serial.println("VIES button pressed!");
-        item.isDirty = true;
-        dispatchItemEvent(item, true);
-        mode = HomeScreenMode::RESULT;
-        needsRedraw = true;
-        return;
-      }
+    Item& item = allItems[pendingItemIndex];
+    
+    // Simpele verdeling: bovenste helft = schoon, onderste helft = vies
+    // Header is 60px, dus content start bij y=60
+    // Scherm is 320px hoog
+    // Midden is rond y=160
+    
+    if (y >= 60 && y < 190) {
+      // Bovenste helft - SCHOON
+      Serial.println("SCHOON button pressed!");
+      item.isDirty = false;
+      dispatchItemEvent(item, false);
+      mode = HomeScreenMode::RESULT;
+      needsRedraw = true;
+      return;
     }
-    Serial.println("Popup click missed buttons");
+    
+    if (y >= 190) {
+      // Onderste helft - VIES
+      Serial.println("VIES button pressed!");
+      item.isDirty = true;
+      dispatchItemEvent(item, true);
+      mode = HomeScreenMode::RESULT;
+      needsRedraw = true;
+      return;
+    }
+    
+    Serial.println("Popup click in header area - ignored");
   }
 
   void dispatchItemEvent(const Item& item, bool isDirty) {

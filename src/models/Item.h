@@ -32,10 +32,14 @@ struct Item {
   }
 
   static ItemCategory stringToCategory(const char* str) {
-    if (strcmp(str, "plastic") == 0) return ItemCategory::PLASTIC;
-    if (strcmp(str, "paper") == 0) return ItemCategory::PAPER;
-    if (strcmp(str, "green") == 0) return ItemCategory::GREEN;
-    if (strcmp(str, "waste") == 0) return ItemCategory::WASTE;
+    // Case-insensitive vergelijking
+    String s = String(str);
+    s.toLowerCase();
+    
+    if (s == "plastic") return ItemCategory::PLASTIC;
+    if (s == "paper" || s == "papier") return ItemCategory::PAPER;
+    if (s == "green" || s == "groen" || s == "gft") return ItemCategory::GREEN;
+    if (s == "waste" || s == "rest" || s == "restafval") return ItemCategory::WASTE;
     return ItemCategory::WASTE;
   }
 };
