@@ -181,6 +181,10 @@ private:
       // LEDs uit (terugkeer naar grid)
       ledAnimation->stop();  // stop() zet isAnimating op false EN doet allOff()
       Serial.println("LEDs turned off (returned to grid)");
+    } else if (event.param1 == 3) {
+      // Go to search screen
+      stateManager->goToSearchScreen();
+      Serial.println("Going to search screen");
     } else {
       stateManager->goToHomeScreen();
     }

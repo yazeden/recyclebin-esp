@@ -9,7 +9,8 @@ enum class ScreenType {
   CATEGORY,
   ITEM_DETAIL,
   LOADING,
-  ERROR
+  ERROR,
+  SEARCH
 };
 
 class ScreenState {

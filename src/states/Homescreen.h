@@ -210,6 +210,16 @@ public:
         break;
         
       case HomeScreenMode::GRID:
+        // Check voor search icon (rechtsboven, x > 200, y < 40)
+        if (x > 200 && y < 40) {
+          Serial.println("Search icon tapped!");
+          Event searchEvent;
+          searchEvent.type = EventType::SCREEN_CHANGED;
+          searchEvent.param1 = 3;  // 3 = go to search
+          EventBus::getInstance().dispatch(searchEvent);
+          return;
+        }
+        
         // Footer area (y >= 270 = 320-50)
         if (y >= 270) {
           // Check voor vorige button (links, x < 80)

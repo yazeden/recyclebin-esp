@@ -53,19 +53,34 @@ public:
   }
 
   // ========== HEADER ==========
-  void drawHeader(const char* title, int currentPage, int totalPages) {
+  void drawHeader(const char* title, int currentPage, int totalPages, bool showSearch = true) {
     tft->fillRect(0, 0, PORTRAIT_WIDTH, HEADER_HEIGHT, COLOR_HEADER);
     tft->setTextColor(TFT_WHITE, COLOR_HEADER);
     tft->setTextDatum(MC_DATUM);
     tft->drawString(title, PORTRAIT_WIDTH / 2, HEADER_HEIGHT / 2, 2);
     
-    // Page indicator
+    // Page indicator (links)
     if (totalPages > 1) {
       char pageStr[10];
       sprintf(pageStr, "%d/%d", currentPage, totalPages);
-      tft->setTextDatum(MR_DATUM);
-      tft->drawString(pageStr, PORTRAIT_WIDTH - 5, HEADER_HEIGHT / 2, 1);
+      tft->setTextDatum(ML_DATUM);
+      tft->drawString(pageStr, 5, HEADER_HEIGHT / 2, 1);
     }
+    
+    // Search icon (rechts) - vergrootglas
+    if (showSearch) {
+      int iconX = PORTRAIT_WIDTH - 30;
+      int iconY = HEADER_HEIGHT / 2;
+      
+      // Cirkel van vergrootglas
+      tft->drawCircle(iconX, iconY - 2, 8, TFT_WHITE);
+      tft->drawCircle(iconX, iconY - 2, 7, TFT_WHITE);
+      
+      // Steel van vergrootglas
+      tft->drawLine(iconX + 6, iconY + 4, iconX + 12, iconY + 10, TFT_WHITE);
+      tft->drawLine(iconX + 7, iconY + 4, iconX + 13, iconY + 10, TFT_WHITE);
+    }
+    
     tft->setTextDatum(TL_DATUM);
   }
 

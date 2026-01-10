@@ -5,6 +5,7 @@
 #include "ScreenState.h"
 #include "HomeScreen.h"
 #include "SleepModeScreen.h"
+#include "SearchScreen.h"
 #include "../display/DisplayManager.h"
 #include "../services/LEDAnimationService.h"
 
@@ -13,6 +14,7 @@ private:
   std::unique_ptr<ScreenState> currentState;
   std::unique_ptr<HomeScreen> homeState;
   std::unique_ptr<SleepModeScreen> sleepState;
+  std::unique_ptr<SearchScreen> searchState;
   DisplayManager* display;
   LEDAnimationService* ledAnimation;
 
@@ -22,6 +24,7 @@ public:
     
     homeState = std::make_unique<HomeScreen>(d);
     sleepState = std::make_unique<SleepModeScreen>(d, led);
+    searchState = std::make_unique<SearchScreen>(d);
     
     // START WITH SLEEPMODE (shows 6 items with circles)
     currentState = std::move(sleepState);
@@ -45,6 +48,16 @@ public:
     
     homeState = std::make_unique<HomeScreen>(display);
     currentState = std::move(homeState);
+    currentState->onEnter();
+  }
+
+  void goToSearchScreen() {
+    if (currentState) {
+      currentState->onExit();
+    }
+    
+    searchState = std::make_unique<SearchScreen>(display);
+    currentState = std::move(searchState);
     currentState->onEnter();
   }
 
