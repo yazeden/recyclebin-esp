@@ -96,18 +96,20 @@ private:
   void handlePopupClick(int x, int y) {
     if (pendingItemIndex < 0 || pendingItemIndex >= (int)allItems.size()) return;
     
-    Serial.printf("Popup click: x=%d, y=%d\n", x, y);
+    Serial.printf("==> Popup click: x=%d, y=%d\n", x, y);
     
     Item& item = allItems[pendingItemIndex];
     
-    // Simpele verdeling: bovenste helft = schoon, onderste helft = vies
-    // Header is 60px, dus content start bij y=60
-    // Scherm is 320px hoog
-    // Midden is rond y=160
+    // SIMPELE SPLIT: boven y=200 = SCHOON, onder y=200 = VIES
+    // Negeer alleen de header area (y < 60)
+    if (y < 60) {
+      Serial.println("==> Touch in header - ignored");
+      return;
+    }
     
-    if (y >= 60 && y < 190) {
-      // Bovenste helft - SCHOON
-      Serial.println("SCHOON button pressed!");
+    // Bovenste helft (y: 60-199) = SCHOON
+    if (y < 200) {
+      Serial.println("==> SCHOON selected!");
       item.isDirty = false;
       dispatchItemEvent(item, false);
       mode = HomeScreenMode::RESULT;
@@ -115,17 +117,12 @@ private:
       return;
     }
     
-    if (y >= 190) {
-      // Onderste helft - VIES
-      Serial.println("VIES button pressed!");
-      item.isDirty = true;
-      dispatchItemEvent(item, true);
-      mode = HomeScreenMode::RESULT;
-      needsRedraw = true;
-      return;
-    }
-    
-    Serial.println("Popup click in header area - ignored");
+    // Onderste helft (y: 200+) = VIES
+    Serial.println("==> VIES selected!");
+    item.isDirty = true;
+    dispatchItemEvent(item, true);
+    mode = HomeScreenMode::RESULT;
+    needsRedraw = true;
   }
 
   void dispatchItemEvent(const Item& item, bool isDirty) {

@@ -18,6 +18,11 @@ private:
   std::unique_ptr<TouchInputManager> touchInput;
   std::unique_ptr<LEDAnimationService> ledAnimation;
   std::unique_ptr<StateManager> stateManager;
+  
+  // Wake-up guard: ignore touches briefly after waking from sleep
+  bool justWokeUp = false;
+  unsigned long wakeUpTime = 0;
+  const unsigned long WAKEUP_GUARD_MS = 500;  // 500ms guard time (longer for better UX)
 
   SleepModeService& sleepModeService = 
     SleepModeService::getInstance();
@@ -113,19 +118,38 @@ public:
 
 private:
   void onTouchPressed(const Event& event) {
-    Serial.printf("Touch: x=%d, y=%d (screen=%d)\n", 
+    unsigned long now = millis();
+    
+    Serial.printf("Touch: x=%d, y=%d (screen=%d, justWoke=%d, elapsed=%lu)\n", 
                   event.param1, event.param2, 
-                  (int)stateManager->getCurrentScreenType());
+                  (int)stateManager->getCurrentScreenType(),
+                  justWokeUp, now - wakeUpTime);
+    
     sleepModeService.recordActivity();
     
-    // If we're in sleep mode, wake up and go to home screen
+    // If we're in sleep mode, wake up ONLY - don't forward touch
     if (stateManager->getCurrentScreenType() == ScreenType::SLEEP) {
-      Serial.println("Waking up from sleep mode!");
+      Serial.println("==> WAKE UP from sleep!");
       stateManager->goToHomeScreen();
-    } else {
-      // Forward touch event to current state (HomeScreen)
-      stateManager->handleEvent(event);
+      justWokeUp = true;
+      wakeUpTime = now;
+      return;  // STOP HERE - don't process touch
     }
+    
+    // Check wake-up guard - ignore ALL touches for 500ms after waking
+    if (justWokeUp) {
+      unsigned long elapsed = now - wakeUpTime;
+      if (elapsed < WAKEUP_GUARD_MS) {
+        Serial.printf("==> Touch BLOCKED (guard: %lu/%lu ms)\n", elapsed, WAKEUP_GUARD_MS);
+        return;  // BLOCK this touch
+      }
+      Serial.println("==> Guard expired, touches enabled");
+      justWokeUp = false;
+    }
+    
+    // Forward touch event to current state
+    Serial.println("==> Forwarding touch to state");
+    stateManager->handleEvent(event);
   }
 
   void onItemSelected(const Event& event) {

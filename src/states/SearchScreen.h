@@ -44,8 +44,8 @@ private:
       String nameUpper = item.name;
       nameUpper.toUpperCase();
       
-      // Check of de naam begint met de zoekquery OF de query bevat
-      if (nameUpper.startsWith(queryUpper) || nameUpper.indexOf(queryUpper) >= 0) {
+      // ALLEEN startsWith - zoeken op eerste letter(s)
+      if (nameUpper.startsWith(queryUpper)) {
         filteredItems.push_back(item);
       }
     }
@@ -121,8 +121,8 @@ private:
   }
 
   int getResultItemAtPosition(int x, int y) {
-    // Results tonen: lijst onder zoekbalk
-    int listStartY = 60;
+    // Results tonen: lijst onder zoekbalk + "X gevonden" header (20px)
+    int listStartY = 80;  // 60 (search bar) + 20 (count header)
     int itemHeight = 50;
     
     if (y < listStartY) return -1;
@@ -176,52 +176,95 @@ public:
       int x = event.param1;
       int y = event.param2;
       
-      Serial.printf("Search touch: x=%d, y=%d\n", x, y);
+      bool hasResults = (filteredItems.size() > 0);
+      int kbStartY = hasResults ? 140 : 60;
       
-      // Check voor X button rechtsboven (exit)
-      if (x > PORTRAIT_WIDTH - 50 && y < 50) {
-        Serial.println("Exit button pressed");
+      Serial.printf("==> Search touch: x=%d, y=%d, results=%d, kbY=%d\n", 
+                    x, y, filteredItems.size(), kbStartY);
+      
+      // X button rechtsboven (exit)
+      if (x > 190 && y < 60) {
+        Serial.println("==> Exit search");
         exitSearch();
         return;
       }
       
-      if (showingResults && filteredItems.size() > 0) {
-        // Check of een resultaat is aangeklikt
-        int resultIdx = getResultItemAtPosition(x, y);
+      // Resultaten area (y: 60-140)
+      if (hasResults && y >= 60 && y < 140) {
+        int resultIdx = getResultItemAtPositionCompact(x, y);
+        Serial.printf("==> Result tap: idx=%d\n", resultIdx);
         if (resultIdx >= 0) {
           handleResultClick(resultIdx);
           return;
         }
       }
       
-      // Keyboard touch
-      int keyIndex = getKeyAtPosition(x, y);
-      if (keyIndex >= 0) {
-        handleKeyPress(keyIndex);
+      // Keyboard area - ALTIJD actief als y >= kbStartY
+      if (y >= kbStartY) {
+        int keyIndex = getKeyAtPositionDynamic(x, y, kbStartY);
+        Serial.printf("==> Key tap: idx=%d\n", keyIndex);
+        if (keyIndex >= 0) {
+          handleKeyPress(keyIndex);
+          return;
+        }
       }
-    } else if (event.type == EventType::SWIPE_LEFT && showingResults) {
-      // Scroll results down (next)
-      if (resultScrollOffset + 5 < (int)filteredItems.size()) {
-        resultScrollOffset += 3;
+      
+      Serial.printf("==> Touch not handled: y=%d < kbStartY=%d\n", y, kbStartY);
+    } else if (event.type == EventType::SWIPE_LEFT) {
+      Serial.println("==> Swipe LEFT in search");
+      if (filteredItems.size() > 0 && resultScrollOffset + 2 < (int)filteredItems.size()) {
+        resultScrollOffset++;
         needsRedraw = true;
       }
-    } else if (event.type == EventType::SWIPE_RIGHT && showingResults) {
-      // Scroll results up (prev)
+    } else if (event.type == EventType::SWIPE_RIGHT) {
+      Serial.println("==> Swipe RIGHT in search");
       if (resultScrollOffset > 0) {
-        resultScrollOffset -= 3;
-        if (resultScrollOffset < 0) resultScrollOffset = 0;
+        resultScrollOffset--;
         needsRedraw = true;
       }
     }
   }
 
-  void update() override {
-    // Show results when we have search query
-    bool shouldShowResults = (searchQuery.length() > 0 && filteredItems.size() > 0);
-    if (shouldShowResults != showingResults) {
-      showingResults = shouldShowResults;
-      needsRedraw = true;
+  // Compact result position (for small result area 60-140)
+  int getResultItemAtPositionCompact(int x, int y) {
+    int listStartY = 60;
+    int itemHeight = 40;  // Smaller items
+    
+    if (y < listStartY || y >= 140) return -1;
+    
+    int touchY = y - listStartY;
+    int rowIndex = touchY / itemHeight;
+    int actualIndex = resultScrollOffset + rowIndex;
+    
+    if (actualIndex >= 0 && actualIndex < (int)filteredItems.size()) {
+      return actualIndex;
     }
+    return -1;
+  }
+
+  // Dynamic keyboard position calculator
+  int getKeyAtPositionDynamic(int x, int y, int kbStartY) {
+    int kbHeight = PORTRAIT_HEIGHT - kbStartY;
+    
+    if (y < kbStartY) return -1;
+    
+    int keyW = PORTRAIT_WIDTH / KB_COLS;
+    int keyH = kbHeight / KB_ROWS;
+    
+    int col = x / keyW;
+    int row = (y - kbStartY) / keyH;
+    
+    if (col >= KB_COLS) col = KB_COLS - 1;
+    if (row >= KB_ROWS) row = KB_ROWS - 1;
+    
+    int keyIndex = row * KB_COLS + col;
+    if (keyIndex >= 30) keyIndex = 29;
+    
+    return keyIndex;
+  }
+
+  void update() override {
+    // Nothing needed here
   }
 
   void render() override {
@@ -229,6 +272,8 @@ public:
     needsRedraw = false;
     
     TFT_eSPI* tft = display->getTFT();
+    bool hasResults = (filteredItems.size() > 0);
+    int kbStartY = hasResults ? 140 : 60;
     
     // Clear screen
     tft->fillScreen(COLOR_BG);
@@ -256,15 +301,92 @@ public:
       tft->drawFastVLine(22 + textW, 18, 24, TFT_BLACK);
     }
     
-    if (showingResults) {
-      // Show search results
-      drawResults(tft);
-    } else {
-      // Show keyboard
-      drawKeyboard(tft);
+    // Show compact results if any (between search bar and keyboard)
+    if (hasResults) {
+      drawResultsCompact(tft);
     }
     
+    // ALWAYS show keyboard
+    drawKeyboardDynamic(tft, kbStartY);
+    
     tft->setTextDatum(TL_DATUM);
+  }
+
+  void drawResultsCompact(TFT_eSPI* tft) {
+    // Compact results area: Y 60-140 (80px height, 2 items of 40px each)
+    int startY = 60;
+    int itemHeight = 40;
+    int maxVisible = 2;
+    
+    for (int i = 0; i < maxVisible && (resultScrollOffset + i) < (int)filteredItems.size(); i++) {
+      const Item& item = filteredItems[resultScrollOffset + i];
+      int y = startY + i * itemHeight;
+      
+      // Item background
+      tft->fillRoundRect(5, y + 2, PORTRAIT_WIDTH - 10, itemHeight - 4, 6, item.color);
+      
+      // Item name
+      tft->setTextColor(TFT_WHITE, item.color);
+      tft->setTextDatum(ML_DATUM);
+      
+      String name = item.name;
+      if (name.length() > 20) {
+        name = name.substring(0, 18) + "..";
+      }
+      tft->drawString(name.c_str(), 15, y + itemHeight/2, 2);
+    }
+    
+    // Show count
+    tft->setTextColor(TFT_DARKGREY, COLOR_BG);
+    tft->setTextDatum(MR_DATUM);
+    char countStr[15];
+    sprintf(countStr, "%d/%d", resultScrollOffset + 1, filteredItems.size());
+    tft->drawString(countStr, PORTRAIT_WIDTH - 10, 135, 1);
+  }
+
+  void drawKeyboardDynamic(TFT_eSPI* tft, int kbStartY) {
+    int kbHeight = PORTRAIT_HEIGHT - kbStartY;
+    int keyW = PORTRAIT_WIDTH / KB_COLS;
+    int keyH = kbHeight / KB_ROWS;
+    
+    for (int i = 0; i < 30; i++) {
+      int col = i % KB_COLS;
+      int row = i / KB_COLS;
+      int x = col * keyW;
+      int y = kbStartY + row * keyH;
+      
+      char c = keyboardChars[i];
+      
+      // Key background color
+      uint16_t keyColor;
+      if (i == 26) {
+        keyColor = TFT_ORANGE;  // Backspace
+      } else if (i == 27) {
+        keyColor = TFT_RED;     // Clear/Exit
+      } else if (i == 28 || i == 29) {
+        keyColor = TFT_DARKGREY; // Space, dot
+      } else {
+        keyColor = TFT_NAVY;    // Letters
+      }
+      
+      // Draw key
+      tft->fillRoundRect(x + 2, y + 2, keyW - 4, keyH - 4, 4, keyColor);
+      
+      // Key label
+      tft->setTextColor(TFT_WHITE, keyColor);
+      tft->setTextDatum(MC_DATUM);
+      
+      char label[2] = {c, '\0'};
+      if (i == 26) {
+        tft->drawString("<", x + keyW/2, y + keyH/2, 2);
+      } else if (i == 27) {
+        tft->drawString("X", x + keyW/2, y + keyH/2, 2);
+      } else if (i == 28) {
+        tft->drawString("_", x + keyW/2, y + keyH/2, 2);
+      } else {
+        tft->drawString(label, x + keyW/2, y + keyH/2, 2);
+      }
+    }
   }
 
   void drawKeyboard(TFT_eSPI* tft) {
